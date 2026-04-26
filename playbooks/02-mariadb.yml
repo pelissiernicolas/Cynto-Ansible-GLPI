@@ -1,0 +1,8 @@
+# playbooks/02-mariadb.yml
+---
+- name: Installation et configuration de MariaDB pour GLPI
+  hosts: glpi
+  become: true
+
+  roles:
+    - mariadb

@@ -1,0 +1,8 @@
+# playbooks/04-glpi.yml
+---
+- name: Installation de GLPI
+  hosts: glpi
+  become: true
+
+  roles:
+    - glpi

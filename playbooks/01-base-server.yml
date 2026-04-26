@@ -1,0 +1,8 @@
+# playbooks/01-base-server.yml
+---
+- name: Configuration de base du serveur GLPI
+  hosts: glpi
+  become: true
+  gather_facts: true
+  roles:
+    - base_server

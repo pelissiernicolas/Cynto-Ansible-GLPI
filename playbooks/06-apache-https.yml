@@ -1,0 +1,8 @@
+# playbooks/06-apache-https.yml
+---
+- name: Configuration HTTPS pour GLPI
+  hosts: glpi
+  become: true
+
+  roles:
+    - apache_https
