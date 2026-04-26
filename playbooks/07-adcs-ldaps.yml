@@ -1,0 +1,8 @@
+# playbooks/07-adcs-ldaps.yml
+---
+- name: Configuration AD CS et LDAPS sur le contrôleur de domaine
+  hosts: ad
+  gather_facts: false
+
+  roles:
+    - adcs_ldaps

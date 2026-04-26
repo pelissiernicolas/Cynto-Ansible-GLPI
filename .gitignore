@@ -20,3 +20,4 @@ vault_pass*
 __pycache__/
 *.pyc
 cynto-root-ca.cer
+main.yml:Zone.Identifier

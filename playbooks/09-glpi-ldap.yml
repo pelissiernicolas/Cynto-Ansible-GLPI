@@ -1,0 +1,8 @@
+# playbooks/07-glpi-ldap.yml
+---
+- name: Configuration LDAPS GLPI
+  hosts: glpi
+  become: true
+
+  roles:
+    - glpi_ldap

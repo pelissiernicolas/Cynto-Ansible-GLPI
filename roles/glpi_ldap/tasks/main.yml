@@ -1,0 +1,144 @@
+# roles/glpi_ldap/tasks/main.yml
+---
+- name: Installer les paquets LDAP
+  ansible.builtin.apt:
+    name:
+      - php-ldap
+      - ldap-utils
+      - openssl
+    state: present
+    update_cache: true
+  notify: Restart Apache
+
+- name: Copier le certificat CA AD brut sur Ubuntu
+  ansible.builtin.copy:
+    src: "{{ ldap_ca_cert_src }}"
+    dest: /tmp/cynto-root-ca.cer
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Convertir le certificat CA en PEM .crt
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -inform
+      - DER
+      - -in
+      - /tmp/cynto-root-ca.cer
+      - -out
+      - "{{ ldap_ca_cert_remote_path }}"
+  changed_when: true
+
+- name: Déclarer la CA LDAP système
+  ansible.builtin.lineinfile:
+    path: /etc/ldap/ldap.conf
+    regexp: '^TLS_CACERT\s+'
+    line: "TLS_CACERT {{ ldap_ca_cert_remote_path }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Mettre à jour les certificats de confiance
+  ansible.builtin.command: update-ca-certificates
+  changed_when: false
+
+- name: Forcer la résolution locale du DC AD en IPv4
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^\s*{{ ad_dc_ip | regex_escape }}\s+{{ ad_dc_fqdn | regex_escape }}(\s|$)'
+    line: "{{ ad_dc_ip }} {{ ad_dc_fqdn }}"
+    state: present
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Vérifier le bind LDAPS système
+  ansible.builtin.command:
+    argv:
+      - ldapwhoami
+      - -x
+      - -H
+      - "{{ ldap_host_with_ldaps_prefix }}"
+      - -D
+      - "{{ ldap_bind_dn }}"
+      - -w
+      - "{{ vault_service_account_password }}"
+  register: ldap_bind_test
+  changed_when: false
+  failed_when: ldap_bind_test.rc != 0
+  no_log: true
+
+- name: Supprimer l'ancienne configuration LDAPS GLPI
+  community.mysql.mysql_query:
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_db: "{{ glpi_db_name }}"
+    query: >
+      DELETE FROM glpi_authldaps
+      WHERE name = '{{ ldap_name }}';
+  no_log: true
+
+
+- name: Créer ou mettre à jour la configuration LDAPS GLPI
+  community.mysql.mysql_query:
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_db: "{{ glpi_db_name }}"
+    query: |
+      INSERT INTO glpi_authldaps
+      (
+        name, host, port, basedn, rootdn, rootdn_passwd,
+        `condition`, login_field, sync_field,
+        use_tls, use_bind, is_active, is_default,
+        date_creation, date_mod
+      )
+      VALUES
+      (
+        '{{ ldap_name }}',
+        '{{ ldap_host_with_ldaps_prefix }}',
+        {{ ldap_port }},
+        '{{ ldap_base_dn }}',
+        '{{ ldap_bind_dn }}',
+        '{{ vault_service_account_password }}',
+        '{{ ldap_user_filter }}',
+        '{{ ldap_login_field }}',
+        '{{ ldap_sync_field }}',
+        0,
+        1,
+        1,
+        1,
+        NOW(),
+        NOW()
+      )
+      ON DUPLICATE KEY UPDATE
+        host = VALUES(host),
+        port = VALUES(port),
+        basedn = VALUES(basedn),
+        rootdn = VALUES(rootdn),
+        rootdn_passwd = VALUES(rootdn_passwd),
+        `condition` = VALUES(`condition`),
+        login_field = VALUES(login_field),
+        sync_field = VALUES(sync_field),
+        use_tls = VALUES(use_tls),
+        use_bind = VALUES(use_bind),
+        is_active = 1,
+        is_default = 1,
+        date_mod = NOW();
+  no_log: false
+
+- name: Synchroniser les utilisateurs LDAP dans GLPI
+  ansible.builtin.command:
+    argv:
+      - sudo
+      - -u
+      - www-data
+      - php
+      - bin/console
+      - glpi:ldap:synchronize_users
+      - --only-create-new
+      - --no-interaction
+  args:
+    chdir: "{{ glpi_install_dir }}"
+  changed_when: false

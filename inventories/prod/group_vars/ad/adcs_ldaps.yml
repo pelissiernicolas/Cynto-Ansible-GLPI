@@ -1,0 +1,15 @@
+# inventories/prod/group_vars/ad/adcs_ldaps.yml
+---
+ad_domain: cynto.tech
+ad_base_dn: DC=cynto,DC=tech
+
+ad_dc_fqdn: srv-ad-01.cynto.tech
+
+ad_ca_common_name: CYNTO-ROOT-CA
+ad_ca_dn_suffix: DC=cynto,DC=tech
+ad_ca_validity_years: 10
+
+ad_ca_export_dir: C:\Temp\CYNTO-CA
+ad_ca_cert_export_path: C:\Temp\CYNTO-CA\cynto-root-ca.cer
+
+ad_ca_config_string: "srv-ad-01\\CYNTO-ROOT-CA"
