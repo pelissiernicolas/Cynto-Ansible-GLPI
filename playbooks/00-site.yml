@@ -1,0 +1,9 @@
+- import_playbook: 01-base-server.yml
+- import_playbook: 02-mariadb.yml
+- import_playbook: 03-apache.yml
+- import_playbook: 04-glpi.yml
+- import_playbook: 05-glpi-postinstall.yml
+- import_playbook: 06-apache-https.yml
+- import_playbook: 07-adcs-ldaps.yml
+- import_playbook: 08-fetch-ad-ca.yml
+- import_playbook: 09-glpi-ldap.yml
