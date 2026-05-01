@@ -1,76 +1,57 @@
 # roles/glpi_ldap/tasks/main.yml
 ---
 - name: Installer les paquets LDAP
-  ansible.builtin.apt:
+  apt:
     name:
       - php-ldap
       - ldap-utils
       - openssl
     state: present
     update_cache: true
-  notify: Restart Apache
 
-- name: Copier le certificat CA AD brut sur Ubuntu
-  ansible.builtin.copy:
+- name: Copier le certificat CA AD
+  copy:
     src: "{{ ldap_ca_cert_src }}"
-    dest: /tmp/cynto-root-ca.cer
-    owner: root
-    group: root
-    mode: "0644"
+    dest: /tmp/ad-ca.cer
 
-- name: Convertir le certificat CA en PEM .crt
-  ansible.builtin.command:
-    argv:
-      - openssl
-      - x509
-      - -inform
-      - DER
-      - -in
-      - /tmp/cynto-root-ca.cer
-      - -out
-      - "{{ ldap_ca_cert_remote_path }}"
-  changed_when: true
+- name: Convertir le certificat en .crt
+  command:
+    cmd: >
+      openssl x509 -inform DER
+      -in /tmp/ad-ca.cer
+      -out {{ ldap_ca_cert_remote_path }}
 
-- name: Déclarer la CA LDAP système
-  ansible.builtin.lineinfile:
+- name: Déclarer la CA LDAP
+  lineinfile:
     path: /etc/ldap/ldap.conf
-    regexp: '^TLS_CACERT\s+'
     line: "TLS_CACERT {{ ldap_ca_cert_remote_path }}"
     create: true
-    owner: root
-    group: root
-    mode: "0644"
 
-- name: Mettre à jour les certificats de confiance
-  ansible.builtin.command: update-ca-certificates
-  changed_when: false
+- name: Mettre à jour les certificats
+  command: update-ca-certificates
 
-- name: Forcer la résolution locale du DC AD en IPv4
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    regexp: '^\s*{{ ad_dc_ip | regex_escape }}\s+{{ ad_dc_fqdn | regex_escape }}(\s|$)'
-    line: "{{ ad_dc_ip }} {{ ad_dc_fqdn }}"
-    state: present
-    create: true
-    owner: root
-    group: root
-    mode: "0644"
-
-- name: Vérifier le bind LDAPS système
-  ansible.builtin.command:
+- name: Tester LDAPS
+  command:
     argv:
       - ldapwhoami
       - -x
       - -H
-      - "{{ ldap_host_with_ldaps_prefix }}"
+      - "{{ ldap_uri }}"
       - -D
       - "{{ ldap_bind_dn }}"
       - -w
       - "{{ vault_service_account_password }}"
-  register: ldap_bind_test
+  no_log: false
+
+- name: Chiffrer le mot de passe LDAP avec GLPI
+  ansible.builtin.command: >
+    php -r 'chdir("{{ glpi_install_dir }}");
+    require_once "vendor/autoload.php";
+    if (!defined("GLPI_CONFIG_DIR")) { define("GLPI_CONFIG_DIR", "{{ glpi_install_dir }}/config"); }
+    echo (new GLPIKey())->encrypt("{{ vault_service_account_password }}");'
+  register: glpi_ldap_encrypted_password
   changed_when: false
-  failed_when: ldap_bind_test.rc != 0
-  no_log: true
+  no_log: false
 
 - name: Supprimer l'ancienne configuration LDAPS GLPI
   community.mysql.mysql_query:
@@ -81,8 +62,7 @@
       WHERE name = '{{ ldap_name }}';
   no_log: true
 
-
-- name: Créer ou mettre à jour la configuration LDAPS GLPI
+- name: Créer la configuration LDAPS GLPI avec mot de passe chiffré
   community.mysql.mysql_query:
     login_unix_socket: /run/mysqld/mysqld.sock
     login_db: "{{ glpi_db_name }}"
@@ -97,11 +77,11 @@
       VALUES
       (
         '{{ ldap_name }}',
-        '{{ ldap_host_with_ldaps_prefix }}',
+        '{{ ldap_uri }}',
         {{ ldap_port }},
         '{{ ldap_base_dn }}',
         '{{ ldap_bind_dn }}',
-        '{{ vault_service_account_password }}',
+        '{{ glpi_ldap_encrypted_password.stdout }}',
         '{{ ldap_user_filter }}',
         '{{ ldap_login_field }}',
         '{{ ldap_sync_field }}',
@@ -111,22 +91,8 @@
         1,
         NOW(),
         NOW()
-      )
-      ON DUPLICATE KEY UPDATE
-        host = VALUES(host),
-        port = VALUES(port),
-        basedn = VALUES(basedn),
-        rootdn = VALUES(rootdn),
-        rootdn_passwd = VALUES(rootdn_passwd),
-        `condition` = VALUES(`condition`),
-        login_field = VALUES(login_field),
-        sync_field = VALUES(sync_field),
-        use_tls = VALUES(use_tls),
-        use_bind = VALUES(use_bind),
-        is_active = 1,
-        is_default = 1,
-        date_mod = NOW();
-  no_log: false
+      );
+  no_log: true
 
 - name: Synchroniser les utilisateurs LDAP dans GLPI
   ansible.builtin.command:

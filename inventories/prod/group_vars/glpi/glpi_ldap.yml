@@ -4,11 +4,13 @@ ldap_name: "CYNTO Active Directory"
 
 ldap_host: "srv-ad-01.cynto.tech"
 ldap_host_with_ldaps_prefix: "ldaps://srv-ad-01.cynto.tech"
+ldap_uri: "ldaps://srv-ad-01.cynto.tech"
 ldap_host_ip: "srv-ad-01.cynto.tech"
 ldap_port: 636
 
-ldap_base_dn: "DC=cynto,DC=tech"
-ldap_user_base_dn: "OU=Utilisateurs,DC=cynto,DC=tech"
+#ldap_base_dn: "DC=cynto,DC=tech"
+ldap_base_dn: "OU=ALL_Utilisateurs,OU=Utilisateurs,DC=cynto,DC=tech"
+ldap_user_base_dn: "OU=ALL_Utilisateurs,OU=Utilisateurs,DC=cynto,DC=tech"
 ldap_group_base_dn: "OU=Groupes,DC=cynto,DC=tech"
 
 ldap_bind_dn: "svc_glpi@cynto.tech"
