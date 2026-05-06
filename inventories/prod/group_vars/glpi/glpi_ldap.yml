@@ -1,19 +1,36 @@
 # inventories/prod/group_vars/glpi/glpi_ldap.yml
 ---
-ldap_name: "CYNTO Active Directory"
+#ldap_name: "CYNTO Active Directory"
 
 ldap_host: "srv-ad-01.cynto.tech"
-ldap_host_with_ldaps_prefix: "ldaps://srv-ad-01.cynto.tech"
-ldap_uri: "ldaps://srv-ad-01.cynto.tech"
-ldap_host_ip: "srv-ad-01.cynto.tech"
+#ldap_host_with_ldaps_prefix: "ldaps://srv-ad-01.cynto.tech"
+#ldap_uri: "ldaps://srv-ad-01.cynto.tech"
+#ldap_host_ip: "srv-ad-01.cynto.tech"
 ldap_port: 636
+
+ldap_servers:
+  - name: "CYNTO AD 01"
+    host: "ldaps://srv-ad-01.cynto.tech"
+    bind_dn: "svc_glpi@cynto.tech"
+    is_default: 1
+
+  - name: "CYNTO AD 02"
+    host: "ldaps://srv-ad-02.cynto.tech"
+    bind_dn: "svc_glpi@cynto.tech"
+    is_default: 0
+
+ad_dc_hosts:
+  - ip: "192.168.1.60"
+    fqdn: "srv-ad-01.cynto.tech"
+  - ip: "192.168.1.61"
+    fqdn: "srv-ad-02.cynto.tech"
 
 #ldap_base_dn: "DC=cynto,DC=tech"
 ldap_base_dn: "OU=ALL_Utilisateurs,OU=Utilisateurs,DC=cynto,DC=tech"
 ldap_user_base_dn: "OU=ALL_Utilisateurs,OU=Utilisateurs,DC=cynto,DC=tech"
 ldap_group_base_dn: "OU=Groupes,DC=cynto,DC=tech"
 
-ldap_bind_dn: "svc_glpi@cynto.tech"
+#ldap_bind_dn: "svc_glpi@cynto.tech"
 
 ldap_login_field: "samaccountname"
 ldap_sync_field: "objectguid"
@@ -23,6 +40,3 @@ ldap_user_filter: "(&(objectClass=user)(objectCategory=person)(!(userAccountCont
 
 ldap_ca_cert_src: "artifacts/ad-ca/cynto-root-ca.cer"
 ldap_ca_cert_remote_path: "/usr/local/share/ca-certificates/cynto-root-ca.crt"
-
-ad_dc_ip: "192.168.1.60"
-ad_dc_fqdn: "srv-ad-01.cynto.tech"

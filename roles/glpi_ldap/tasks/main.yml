@@ -1,5 +1,18 @@
 # roles/glpi_ldap/tasks/main.yml
 ---
+- name: Ajouter les contrôleurs de domaine dans /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^{{ item.ip }}\s+{{ item.fqdn }}'
+    line: "{{ item.ip }} {{ item.fqdn }}"
+    state: present
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ ad_dc_hosts }}"
+  no_log: true
+
 - name: Installer les paquets LDAP
   apt:
     name:
@@ -31,17 +44,19 @@
   command: update-ca-certificates
 
 - name: Tester LDAPS
-  command:
+  ansible.builtin.command:
     argv:
       - ldapwhoami
       - -x
       - -H
-      - "{{ ldap_uri }}"
+      - "{{ item.host }}"
       - -D
-      - "{{ ldap_bind_dn }}"
+      - "{{ item.bind_dn }}"
       - -w
       - "{{ vault_service_account_password }}"
-  no_log: false
+  loop: "{{ ldap_servers }}"
+  changed_when: false
+  no_log: true
 
 - name: Chiffrer le mot de passe LDAP avec GLPI
   ansible.builtin.command: >
@@ -53,16 +68,14 @@
   changed_when: false
   no_log: false
 
-- name: Supprimer l'ancienne configuration LDAPS GLPI
+- name: Supprimer toutes les configurations LDAP GLPI
   community.mysql.mysql_query:
     login_unix_socket: /run/mysqld/mysqld.sock
     login_db: "{{ glpi_db_name }}"
-    query: >
-      DELETE FROM glpi_authldaps
-      WHERE name = '{{ ldap_name }}';
+    query: "DELETE FROM glpi_authldaps;"
   no_log: true
 
-- name: Créer la configuration LDAPS GLPI avec mot de passe chiffré
+- name: Créer les configurations LDAP GLPI (multi AD)
   community.mysql.mysql_query:
     login_unix_socket: /run/mysqld/mysqld.sock
     login_db: "{{ glpi_db_name }}"
@@ -76,11 +89,11 @@
       )
       VALUES
       (
-        '{{ ldap_name }}',
-        '{{ ldap_uri }}',
+        '{{ item.name }}',
+        '{{ item.host }}',
         {{ ldap_port }},
         '{{ ldap_base_dn }}',
-        '{{ ldap_bind_dn }}',
+        '{{ item.bind_dn }}',
         '{{ glpi_ldap_encrypted_password.stdout }}',
         '{{ ldap_user_filter }}',
         '{{ ldap_login_field }}',
@@ -88,10 +101,14 @@
         0,
         1,
         1,
-        1,
+        {{ item.is_default }},
         NOW(),
         NOW()
       );
+  loop: "{{ ldap_servers }}"
+  loop_control:
+    extended: true
+    label: "{{ item.name }}"
   no_log: true
 
 - name: Synchroniser les utilisateurs LDAP dans GLPI
@@ -108,3 +125,13 @@
   args:
     chdir: "{{ glpi_install_dir }}"
   changed_when: false
+
+- name: Masquer le choix de la source de connexion sur la page login
+  community.mysql.mysql_query:
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_db: "{{ glpi_db_name }}"
+    query: >
+      UPDATE glpi_configs
+      SET value = '0'
+      WHERE name = 'display_login_source';
+  no_log: false
