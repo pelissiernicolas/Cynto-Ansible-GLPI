@@ -1,0 +1,7 @@
+---
+- name: Configuration des groupes AD dans GLPI
+  hosts: glpi
+  become: true
+
+  roles:
+    - glpi_ad_groups

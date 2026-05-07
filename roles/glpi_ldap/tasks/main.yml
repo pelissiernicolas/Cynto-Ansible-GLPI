@@ -84,6 +84,7 @@
       (
         name, host, port, basedn, rootdn, rootdn_passwd,
         `condition`, login_field, sync_field,
+        group_field, group_condition, group_search_type, group_member_field,
         use_tls, use_bind, is_active, is_default,
         date_creation, date_mod
       )
@@ -98,10 +99,14 @@
         '{{ ldap_user_filter }}',
         '{{ ldap_login_field }}',
         '{{ ldap_sync_field }}',
+        '{{ ldap_group_field }}',
+        '{{ ldap_group_condition }}',
+        {{ ldap_group_search_type }},
+        '{{ ldap_group_member_field }}',
         0,
         1,
         1,
-        {{ item.is_default }},
+        {{ item.is_default | default(0) }},
         NOW(),
         NOW()
       );
@@ -110,7 +115,7 @@
     extended: true
     label: "{{ item.name }}"
   no_log: true
-
+  
 - name: Synchroniser les utilisateurs LDAP dans GLPI
   ansible.builtin.command:
     argv:
