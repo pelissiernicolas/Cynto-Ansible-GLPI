@@ -1,0 +1,6 @@
+- name: Déploiement GPO GLPI Agent
+  hosts: ad
+  gather_facts: false
+
+  roles:
+    - gpo_glpi_agent

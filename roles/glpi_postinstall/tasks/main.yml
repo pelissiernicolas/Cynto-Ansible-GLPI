@@ -61,3 +61,13 @@
       UPDATE glpi_configs
       SET value = '{{ glpi_timezone }}'
       WHERE name = 'timezone';
+
+- name: Activer l'inventaire GLPI
+  community.mysql.mysql_query:
+    login_unix_socket: /run/mysqld/mysqld.sock
+    login_db: "{{ glpi_db_name }}"
+    query: |
+      UPDATE glpi_configs
+      SET value = '1'
+      WHERE context = 'inventory'
+      AND name = 'enabled_inventory';
