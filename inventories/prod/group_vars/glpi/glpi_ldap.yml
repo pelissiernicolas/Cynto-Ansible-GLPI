@@ -20,9 +20,9 @@ ldap_servers:
     is_default: 0
 
 ad_dc_hosts:
-  - ip: "192.168.1.60"
+  - ip: "10.8.40.10"
     fqdn: "srv-ad-01.cynto.tech"
-  - ip: "192.168.1.61"
+  - ip: "10.8.40.11"
     fqdn: "srv-ad-02.cynto.tech"
 
 ldap_base_dn: "DC=cynto,DC=tech"

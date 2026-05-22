@@ -2,10 +2,10 @@ server_hostname: srv-glpi
 server_fqdn: glpi.cynto.tech
 
 netplan_interface: "{{ ansible_default_ipv4.interface }}"
-server_ip_cidr: 192.168.1.51/24
-server_gateway: 192.168.1.254
+server_ip_cidr: 10.8.40.13/27
+server_gateway: 10.8.40.1
 server_dns:
-  - 192.168.1.60
-  - 192.168.1.61
+  - 10.8.40.10
+  - 10.8.40.11
 
 timezone: Europe/Paris
